@@ -1,0 +1,87 @@
+---
+title: "R Stats Project"
+author: "Alex Chang"
+date: "April 8, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+####This is an R Markdown file created to store some of the basic stat techniques I may need to rely on in the future 
+
+##Continous Predictor & Outcome
+
+The most common usage when both your disease predictor and outcome are continuous are correlations.  Typically these are fit linearly, and if not a best fit line can be established to understand what numerical transformation is needed in order to better conduct a linear regression.  
+
+We will need several things, namely a workable data set and some packages.
+Let's start with a dataset that's built into R that a lot of my intro stats class uses: Cars.  
+
+```{r}
+data <- mtcars 
+head(data,10)
+```
+
+Let's also utilize some data visualization packages to make sure that we spruce up our review of the analysis later on.  Two common ones are ggplot2 and ggpubr.  
+
+Typically you can request these packages from CRAN, but just to be a little fancy we'll pull directly from their respective github pages.  
+
+```{r}
+if(!require(devtools)) install.packages("devtools")
+devtools::install_github("kassambara/ggpubr")
+devtools::install_github("tidyverse/ggplot2")
+install.packages("ggpubr")
+```
+The latter code was unnessesary because apparently ggplot2 is a part of the ggpubr git, but better safe than sorry! 
+I also ended up just using CRAN because it never gives me an error message if I load a package.   
+
+###Performing Diagnostics for correlations tests 
+
+When performing a parametric test such as correlation, you'd want to establish normality in the data set.  While a perfectly normal set of data is unrealistic, it at least gives you an idea of how robust your correlation may be beyond just the the R or R - squared value.  You effectively have something to reference to justify performing a transformation or using other analysis.  
+
+Let's just start with a scatter plot for now.  Let's compare a car's horsepower with their miles per gallon.
+
+```{r}
+library("ggpubr")
+ggscatter(data, x= "mpg", y = "hp", 
+          color = "red", fill = "lightgray",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Miles per Gallon", ylab = "Horsepower")
+```
+
+Look at that, red beauty.  No surprise here, lower horsepower nets a higher mpg rating.  
+
+Now let's check for normality. 
+
+```{r}
+shapiro.test(data$mpg)
+shapiro.test(data$hp)
+```
+
+Looks like horsepower's p-value is <0.05 meaning it is not normal. Not surprising considering out scatter plot would have a trend line that looks like an inverse log function.  But this hardly removes the validity from our analysis given how strong the correlation is.  
+
+How do the Q-Q plots look? 
+```{r}
+ggqqplot(data$mpg, ylab = "mpg")
+ggqqplot(data$hp, ylab = "horsepower")
+```
+
+At least the QQ plot for horsepower fits within a normal distribution characterized by the shade of grey.  
+
+This means we can move forward with a person correlation test, should these prove to the be grossly non parametic, a Spearman or Kendall rank-based test would be used.  
+
+```{r}
+#Pearson Correlation test 
+pearson <- cor.test(data$hp, data$mpg, 
+                     method = "pearson")
+kendall <- cor.test(data$hp, data$mpg, 
+                     method = "kendall")
+spearman <- cor.test(data$hp, data$mpg, 
+                     method = "spearman")
+pearson
+kendall
+spearman
+```
+
