@@ -1,0 +1,215 @@
+---
+title: "ANOVA and MANOVA"
+author: "Alex Chang"
+date: "April 17, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##Dealing with Categorical variables (without Chi-Squared)
+
+###The One Way ANOVA 
+
+Simply put, a one way ANOVA compares the means of multiple (x>2) groups of data with one independent variable that is continuous.  
+
+In health, this is useful for testing the effectiveness of an intervention, or comparing groups of people for one thing, let's say blood pressure, when they are mutually exclusive or distinct.  
+
+Let's go ahead and run through an example.  Fortunatelly R has perfect data for us to do so. 
+```{r}
+anova <- PlantGrowth
+head(anova, 10)
+summary(anova)
+```
+
+Looks like its the weight of some plants split into three groups: control, treatment 1, and treatment 2.  
+
+Is there a way to summarize these groups?  Maybe give these means an eye test before conducting a more robust mathematical test?  
+
+Let's rely on dplyr to help us conduct some stats. 
+```{r}
+library(dplyr)
+group_by(anova, group) %>%
+  summarise(
+    count = n(),
+    mean = mean(weight, na.rm = TRUE),
+    sd = sd(weight, na.rm = TRUE)
+  )
+```
+
+So there are 10 observations per group, and from the looks of it, each group's means are quite different, but the standard deviation seems to overlap.  
+
+Seeing this in numbers won't do, a full blow visualization is necessary here. 
+
+```{r}
+library(ggpubr)
+#I'll also shameless admit that the 6 digit color codes are copies, who has time to fish out those colors anyway? 
+ggboxplot(anova, x = "group", y = "weight",
+          color = "group", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+          order = c("ctrl", "trt1", "trt2"),
+          ylab = "Weight", xlab = "Treatment")
+```
+
+We see aside from the two outliers on treatment one, there is a clear different between the means of all three groups with only minor overlaps of the deviation between treatment 2 and the control group.  
+
+What if we only want to see the mean and the first sigma of the deviation?  fear not. 
+
+```{r}
+ggline(anova, x = "group", y = "weight",
+       add = c("mean_se", "jitter"),
+       order = c("ctrl", "trt1", "trt2"),
+       ylab = "Weight", xlab = "treatment")
+```
+
+With this the difference between treatment 2 ad the other plots is a litte less clear, we see that the first two categories cover a lot more ground.  
+
+But enough visualization, what does the statistics tell us? 
+
+```{r}
+anova_done <- aov(weight ~ group, data = anova)
+summary(anova_done)
+```
+
+So the p value is indeed less than 0.05, and does show that there is significant difference between the mean of each group, despite some overlap with the standard deviations.  Perhaps if we had more data a more accurate comparison can be made.  
+
+
+###Two Way ANOVA 
+
+So what if we want to compare two different factors with multiple groups of data with a continuous independent variable.  An example would be that not only do we want to check the IQ of those who's highest education is high school, college, or grade school, but also want to see if there is a difference between sexes as well.  If we have an adequate amount of data on these factors then this is possible.  
+
+
+```{r}
+twoway <- ToothGrowth
+head(twoway, 10)
+str(twoway)
+```
+
+We see that we have our two factors in the "supp" variable, and can move forward with our analysis. 
+
+Here this data set describes tooth length and compares them to a supplement type and a dosage of that supplement.  Again let's just check the visuals to see if we can find a difference. 
+
+```{r}
+library("ggpubr")
+ggboxplot(twoway, x = "dose", y = "len", color = "supp",
+          palette = c("#00AFBB", "#E7B800"))
+```
+
+Looks like there is a difference between the two factors, especially at dose 1.  Let's re-visualize this with a line graph. 
+
+```{r}
+ggline(twoway, x = "dose", y = "len", color = "supp",
+       add = c("mean_se", "dotplot"),
+       palette = c("#00AFBB", "#E7B800"))
+```
+
+This makes the difference between dose 0.5 and 1 much more apparent, seeing the IQR physically seperated.  
+
+```{r}
+anova2 <- aov(len ~ supp + dose, data = twoway)
+summary(anova2)
+```
+
+Would you look at that, both supplement type and dose differ significantly and it is clear they affect the outcome.  
+
+However, does the dose affect the supplement? or vice versa?  What if these two effects interact with each other?   After all, they could work synergistically.  Fortuantely, the easiest way to test this is to multiply the effect.  
+
+```{r}
+anova2_int <- aov(len ~ supp + dose + supp:dose, data = twoway)
+summary(anova2_int)
+```
+
+Seems like the interaction is also statistically significant, which means they work synergistically and their product should also be included in a predictive model.  
+
+While ANOVA is one way of testing for statistical significance, it's often good practice to back up or validate your findings with another examination.  For ANOVA it's the Tukey Honest Significant Differences test.  It basically tests all the possible means and compares them against their range distribution.  It also compares all possible pairs of means, making it less precise than ANOVA.  
+
+
+
+It's also good practice to check for homogeneity of variances, after all, we're performing an analysis of variances, so you need to make sure your assumption that the variances within each population are roughly equal otherwise it's not a good comparison.  
+
+```{r}
+plot(anova2_int,1)
+```
+uh oh, it seems as though we have several outliers that may affect normality/homogeneity.  Meaning that if this holds true, the data must be cleaned of these outliers or more data points must popular the data set to validate them.  
+
+Let's see if this is statistically worrisome with the Levene's Test for Homogeneity of Variance. 
+
+
+```{r}
+library(car)
+leveneTest(len~supp, data = twoway, center=median)
+```
+
+
+Looks like we should be good for the categorical variable, how about everything else?  Let's just check a QQ plot and call it a day., 
+
+```{r}
+plot(anova2_int, 2)
+```
+Yeah....that's a bit of something off with three outliers, but overall this isn't aggregious enough to not be able to assume normality.  Looks like we're good!  
+
+###MAVNOVA
+
+Unforunately for MANOVA, it's difficult to visualize, since we're going to be comparing a factor between multiple continuous outcomes.  
+
+Let's use R's iris database to perform this.  
+
+```{r}
+iris <- iris
+head(iris, 10)
+```
+
+Let's see if Sepal Length, and Petal Length differ amongst species.  
+
+```{r}
+sepl <- iris$Sepal.Length
+petl <- iris$Petal.Length
+manova <- manova(cbind(Sepal.Length, Petal.Length) ~ Species, data = iris)
+summary (manova)
+```
+
+```{r}
+summary.aov(manova)
+```
+
+Looks like they certainly do differ  
+
+
+
+####ANCOVA 
+
+ANCOVA simply means using a factor alongside a covariate to see if it affects the dependent variable.  We're going to perform a simple example using the Cars dataset built into R.  Here our covariate is horsepower, our factor is whether or not a car has an automatic transmission and the dependent variable is miles per gallong 
+
+```{r}
+input <- mtcars[,c("am", "mpg", "hp")]
+head(input, 10)
+```
+
+In order to do this we must get two regression models. One with the interaction between the categorial variable (Factor/transmission) and the predictor variable (horse power) and one without. 
+
+So let's do the one with interaction first by multiplying the two variables in the equation. 
+
+```{r}
+result <- aov(mpg~hp*am, data = input)
+print(summary(result))
+```
+
+While horsepower and tranmission type does affect mph, it doesn't seem the interaction between the two holds any effect.  
+
+Let's put together the equation without the interaction, even though we already know our answer.  
+
+```{r}
+result1 <- aov(mpg~hp+am, data = input)
+print(summary(result1))
+```
+
+Now we compare the tow using the anova function. 
+
+```{r}
+comparison <- anova(result, result1)
+comparison
+```
+
+The comparison is non sigficiant.  Thus we can conclude the mpg of a car will depend on the horsepower in and doesn not descriminate between an automatic transmission and a manual transmission. 

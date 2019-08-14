@@ -1,0 +1,94 @@
+---
+title: "Chi Squared and 2xK tables"
+author: "Alex Chang"
+date: "April 15, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+####Today we're going to be working with tables, specifically those that are meant to be interpreted as a categorical variables for either or both the independent and dependent variable.  
+
+###Chi Squared
+
+Let's first load a table of data 
+
+```{r}
+file <- "http://www.sthda.com/sthda/RDoc/data/housetasks.txt"
+housetasks <- read.delim(file, row.names = 1)
+head(housetasks)
+```
+
+This data set features a household and the various chores that can occur within.  There are 4 different categories that these chores and split as: They are done by the wife, the husband, alternately, and jointly.  I think the "alternating" category is awfully confusing. So let's just get rid of it. 
+
+```{r}
+library(dplyr)
+house1 <- select(housetasks, -Alternating)
+head(house1)
+```
+
+Let's try to visualize some relationships to see if we can spot the difference through an eye test first.  
+
+```{r}
+table <- as.table(as.matrix(house1))
+install.packages("gplots", repos="http://cran.rstudio.com/", dependencies=TRUE)
+library(gplots)
+balloonplot(t(table), main = "housetasks", xlab = "", ylab="",
+            label = FALSE, show.margins = FALSE)
+```
+
+The dot size here represents the magnitude of the corresponding component.  We see that the wife does a lot of of the tasks in the top rows, whereas the husband does more of the bottom rows.  Let's see if there's a more accurate way to depict this than just dot size.  
+
+```{r}
+install.packages("graphics", repos = "http://cran.rstudio.com/", dependencies = TRUE)
+mosaicplot(table, shade = TRUE, las=2, main = "housetasks")
+```
+
+blue here is a positive association whereas red is a negative, Interestingly enough there definetly seems to be a share of work clearly done by the husband (driving, insurance, repairs, holidays), the wife (laundry, meals, dinner, breakfast), and then both (tidying, dishes, shopping)
+
+
+A Chi square test will test to see if the distribution of the tasks amongst our three categories are independent (up to chance) or dependent (follows a clear pattern) by calculating the expected values and then comparing them to the actual values.  It is noted that one should only conduct this test when the cell's values are all above 5. 
+
+```{r}
+chisq <- chisq.test(house1)
+chisq
+```
+
+We can that there is indeed a significant amount of difference between expected and observed.  
+
+Let's bring the two up to compare by the eye test. 
+
+```{r}
+#observed 
+chisq$observed
+```
+
+```{r}
+round(chisq$expected,1)
+```
+
+Which cells are contributing most to our Chi-Squared value?  Let's take a look. 
+
+```{r}
+install.packages("corrplot", repos = "http://cran.rstudio.com", dependencies = TRUE)
+library(corrplot)
+corrplot(chisq$residual, is.corr = FALSE)
+```
+
+how about seeing this is percentages? 
+
+```{r}
+conperc <- 100*chisq$residuals^2/chisq$statistic
+round(conperc,2)
+```
+
+We see that the wife deals with laundry and meals, Husband repairs, and both plan for the holidays.  something that can be better seen by numbers compared to the visuals.  
+
+If we had cells that had less than 5 as a value we would utilize the Fisher's exact test.  
+
+
+
+

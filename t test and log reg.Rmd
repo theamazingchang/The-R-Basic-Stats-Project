@@ -1,0 +1,70 @@
+---
+title: "Continous Ind vs Dichotmous Dep"
+author: "Alex Chang"
+date: "April 12, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##T Test 
+
+We're going to take a look at a t-test done with a data set that has a dichotmous outcome, meaning two numbers.  Typically you'd do this to compare the means of two variables, so the use is actually limited to a single time and between two variables.  Normally you would do this for a continuous relationship as well.  So let's show both.  
+
+Remember that the two variables need to be normal, or pass the central limit theorem (n>30). 
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(magrittr)
+library(gridExtra)
+```
+
+We're going to be using the "midwest" data from the ggplot 2 package.  Eventually we can just go head and use whatever data we want, but this is easiest.  
+
+```{r}
+head(midwest, 10)
+```
+
+Perfect!  We have an "in metro" variable that is dichotomous alongside many other continuous variables that should work out well. 
+
+Let's start with one a one sample t-test, where we are going to compare a variable mean with another mean of our choosing.  I want to see if the average percentage of the midwest population is less than 3% Asian .
+
+```{r}
+t.test(midwest$percasian, mu = 3, alternative = "less")
+```
+Looks like I'm right, the average population is indeed less than 3 percent asian.  
+
+What if the percentage is non-parametic, meaning non-normal.  We would then utilize a wilcox signed rank test.  
+
+```{r}
+wilcox.test(midwest$percasian, mu = 3, alternative = "less")
+```
+
+Let's now do a two sample t-test, whic his pretty straight forward, we're not comparing two different means, but both are from our data set rather than abitraily assigned a mean of interest.   
+
+To do this, I want to subset some data, particularly the black percentage from Illinois and Ohio.  
+
+```{r}
+sub <- midwest %>% 
+  filter(state == "IL" | state == "OH") %>%
+  select(state, percblack)
+summary(sub)
+```
+
+Let's visualize the data vist. 
+```{r}
+ggplot(sub, aes(state, percblack)) + geom_boxplot()
+```
+
+Looks like the means do differ, but not by much.  Hey! let's just see what our t.test says. 
+
+```{r}
+t.test(percblack ~ state, data = sub)
+```
+
+Yep, there isn't really a difference here. 
+Remember if we were to use a paired t-test it would be because we are using a group that are matched pairs.   

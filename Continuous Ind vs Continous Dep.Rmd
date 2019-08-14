@@ -27,8 +27,8 @@ Let's also utilize some data visualization packages to make sure that we spruce 
 
 Typically you can request these packages from CRAN, but just to be a little fancy we'll pull directly from their respective github pages.  
 
-```{r}
-if(!require(devtools)) install.packages("devtools")
+```{r eval=FALSE, include=FALSE}
+library(devtools)
 devtools::install_github("kassambara/ggpubr")
 devtools::install_github("tidyverse/ggplot2")
 install.packages("ggpubr")
@@ -152,7 +152,6 @@ When it comes to predicting behavior and extrapolating future patterns based on 
 ```{r}
 library (MASS)
 library (tidyverse)
-library(leaps)
 fullmodel <- lm(Fertility ~ ., data = swiss)
 step.model <- stepAIC(fullmodel, direction = "both", trace = FALSE)
 head(swiss, 6)

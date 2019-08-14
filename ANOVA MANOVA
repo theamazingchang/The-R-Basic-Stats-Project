@@ -1,0 +1,76 @@
+---
+title: "ANOVA and MANOVA"
+author: "Alex Chang"
+date: "April 17, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##Dealing with Categorical variables (without Chi-Squared)
+
+###The One Way ANOVA 
+
+Simply put, a one way ANOVA compares the means of multiple (x>2) groups of data with one independent variable that is continuous.  
+
+In health, this is useful for testing the effectiveness of an intervention, or comparing groups of people for one thing, let's say blood pressure, when they are mutually exclusive or distinct.  
+
+Let's go ahead and run through an example.  Fortunatelly R has perfect data for us to do so. 
+```{r}
+anova <- PlantGrowth
+head(anova, 10)
+summary(anova)
+```
+
+Looks like its the weight of some plants split into three groups: control, treatment 1, and treatment 2.  
+
+Is there a way to summarize these groups?  Maybe give these means an eye test before conducting a more robust mathematical test?  
+
+Let's rely on dplyr to help us conduct some stats. 
+```{r}
+library(dplyr)
+group_by(anova, group) %>%
+  summarise(
+    count = n(),
+    mean = mean(weight, na.rm = TRUE),
+    sd = sd(weight, na.rm = TRUE)
+  )
+```
+
+So there are 10 observations per group, and from the looks of it, each group's means are quite different, but the standard deviation seems to overlap.  
+
+Seeing this in numbers won't do, a full blow visualization is necessary here. 
+
+```{r}
+library(ggpubr)
+#I'll also shameless admit that the 6 digit color codes are copies, who has time to fish out those colors anyway? 
+ggboxplot(anova, x = "group", y = "weight",
+          color = "group", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+          order = c("ctrl", "trt1", "trt2"),
+          ylab = "Weight", xlab = "Treatment")
+```
+
+We see aside from the two outliers on treatment one, there is a clear different between the means of all three groups with only minor overlaps of the deviation between treatment 2 and the control group.  
+
+What if we only want to see the mean and the first sigma of the deviation?  fear not. 
+
+```{r}
+ggline(anova, x = "group", y = "weight",
+       add = c("mean_se", "jitter"),
+       order = c("ctrl", "trt1", "trt2"),
+       ylab = "Weight", xlab = "treatment")
+```
+
+With this the difference between treatment 2 ad the other plots is a litte less clear, we see that the first two categories cover a lot more ground.  
+
+But enough visualization, what does the statistics tell us? 
+
+```{r}
+anova_done <- aov(weight ~ group, data = anova)
+summary(anova_done)
+```
+
+So the p value is indeed less than 0.05, and does show that there is significant difference between the mean of each group, despite some overlap with the standard deviations.  Perhaps if we had more data a more accurate comparison can be made.  
